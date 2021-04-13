@@ -1,0 +1,45 @@
+busses:
+  - bus: 1
+    loads:
+      - name: a
+        admittance: 0.0043914 < 90
+      - name: b
+        admittance: 0.00014304 < 90
+    connections:
+      - bus: 2
+        impedance: 20.4941 < 87.53
+      - bus: 3
+        impedance: 61.4414 < 87.53
+  - bus: 2
+    loads:
+      - name: c
+        admittance: 0.00014304 < 90
+      - name: d
+        admittance: 0.00081177 < 90
+    connections:
+      - bus: 1
+        impedance: 20.4941 < 87.53
+      - bus: 3
+        impedance: 28.3965 < 87.53
+  - bus: 3
+    loads:
+      - name: e
+        admittance: 0.0043914 < 90
+      - name: f
+        admittance: 0.00081177 < 90
+      - name: g
+        admittance: 0.003171 < 89.95
+    connections:
+      - bus: 1
+        impedance: 61.4414 < 87.53
+      - bus: 2
+        impedance: 28.3965 < 87.53
+      - bus: 4
+        impedance: 48.4066 < 87.63
+  - bus: 4
+    loads:
+      - name: h
+        admittance: 0.0033141 < 89.95
+    connections:
+      - bus: 3
+        impedance: 48.4066 < 87.63
