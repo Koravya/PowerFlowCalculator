@@ -47,37 +47,22 @@ def toRect(magnitude, angle):
 def vars(key, count, start=0):
     return [symbols(key+list(sym.keys())[x]) for x in range(start, len(Vbus))]
 
-def realP(Ybus, Vbus, busCount, k):
-    varV = vars('v', busCount)
-    varY = vars('y', busCount)
-    varS = vars('s', busCount)
-    varT = vars('t', busCount)
+def powerFlow(Ybus, Vbus, k, reactive=False, varV=None, varY=None, varS=None, varT=None):
+    busCount = len(Vbus)
 
-    P = 0
+    varV = varV if varV is not None else vars('v', busCount)
+    varY = varY if varY is not None else vars('y', busCount)
+    varS = varS if varS is not None else vars('s', busCount)
+    varT = varT if varT is not None else vars('t', busCount)
 
-    for i in range(busCount):
-        P += varV[k]*varV[i]*varY[i]*cos(varT[i]+varS[i]-varS[k])
-
-    return [
-        P, 
-        [diff(P,x) for x in varS[1:]], 
-        [diff(P,x) for x in varV[1:]]]
-
-def reactP(Ybus, Vbus, busCount, k):
-    varV = vars('v', busCount)
-    varY = vars('y', busCount)
-    varS = vars('s', busCount)
-    varT = vars('t', busCount)
-
-    P = 0
+    p = 0
 
     for i in range(busCount):
-        P += varV[k]*varV[i]*varY[i]*sin(varT[i]+varS[i]-varS[k])
+        mag = varV[k]*varV[i]*varY[i]
+        ang = varT[i]+varS[i]-varS[k]
+        p += -1*mag*sin(ang) if reactive else mag*cos(ang)
 
-    return [
-        P, 
-        [diff(P,x) for x in varS[1:]], 
-        [diff(P,x) for x in varV[1:]]]
+    return p, [diff(p,x) for x in varS[1:].union(varV[1:])]
 
 def getMismatch(schedule, busCount):
     varSchedP = vars('sp', busCount, 1)
@@ -98,8 +83,6 @@ schedule = [None, 0.5-I*0.2, -1.0+I*0.5, 0.3-I*0.1]
 
 runs = 1
 
-N = len(Vbus)
-
 print('<Given Data>','\n')
 print('Ybus matrix: ', Ybus)
 print('Vbus Matrix (With inital Guesses): ', Vbus)
@@ -111,9 +94,22 @@ reactEQ = list()
 jp = list()
 jq = list()
 
-for i in range(1,N):
-    p = realP(Ybus, Vbus, N, i)
-    q = reactP(Ybus, Vbus, N, i)
+syms = lambda equation, keyword: [x for x in equation.free_symbols if keyword in str(x)]
+
+varV = None
+varY = None
+varS = None
+varT = None
+
+for i in range(1,len(Vbus)):
+    p, dp = powerFlow(Ybus, Vbus, i, False, varV=varV, varY=varY, varS=varS, varT=varT)
+
+    varV = syms(realEQ[0], 'v') if varV is None else varV
+    varY = syms(realEQ[0], 'y') if varY is None else varY
+    varS = syms(realEQ[0], 's') if varS is None else varS
+    varT = syms(realEQ[0], 't') if varT is None else varT
+
+    q, dq = powerFlow(Ybus, Vbus, i, True, varV=varV, varY=varY, varS=varS, varT=varT)
 
     realEQ.append(p[0])
     reactEQ.append(q[0])
@@ -125,13 +121,6 @@ print('\n', '<General Data>','\n')
 print('Real Power: ', realEQ)
 print('Reactive Power: ', reactEQ)
 print('Jacobian Matrix: ', jp+jq)
-
-syms = lambda equation, keyword: [x for x in equation.free_symbols if keyword in str(x)]
-
-varV = syms(realEQ[0], 'v')
-varY = syms(realEQ[0], 'y')
-varS = syms(realEQ[0], 's')
-varT = syms(realEQ[0], 't')
 
 for l in range(runs):
     jpCalc = jp
@@ -161,7 +150,7 @@ for l in range(runs):
 
     Jacobian = Matrix(Jacobian).inv()
 
-    Mismatch, RealCalculated, ReactiveCalculated = getMismatch(schedule, N)
+    Mismatch, RealCalculated, ReactiveCalculated = getMismatch(schedule, len(Vbus))
 
     val = [(x, realEqCalc[sym[str(x)[-1]]-1]) for x in RealCalculated]
     val += [(x, reactEQCalc[sym[str(x)[-1]]-1]) for x in ReactiveCalculated]
